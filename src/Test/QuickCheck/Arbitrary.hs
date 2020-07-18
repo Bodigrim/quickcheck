@@ -485,7 +485,10 @@ shrinkList shr xs = concat [ removes k n xs | k <- takeWhile (>0) (iterate (`div
 -}
 
 instance Integral a => Arbitrary (Ratio a) where
-  arbitrary = arbitrarySizedFractional
+  arbitrary = sized $ \n -> do
+    numer <- chooseInt (-n, n)
+    denom <- chooseInt (1, max 1 n)
+    pure $ fromIntegral numer / fromIntegral denom
   shrink    = shrinkRealFrac
 
 #if defined(MIN_VERSION_base) && MIN_VERSION_base(4,4,0)
@@ -998,10 +1001,13 @@ inBounds fi g = fmap fi (g `suchThat` (\x -> toInteger x == toInteger (fi x)))
 -- and its maximum absolute value depends on the size parameter.
 arbitrarySizedFractional :: Fractional a => Gen a
 arbitrarySizedFractional =
-  sized $ \n -> do
-    numer <- chooseInt (-n, n)
-    denom <- chooseInt (1, max 1 n)
-    pure $ fromIntegral numer / fromIntegral denom
+  sized $ \n ->
+    let n' = toInteger n in
+      do b <- chooseInteger (1, precision)
+         a <- chooseInteger ((-n') * b, n' * b)
+         return (fromRational (a % b))
+ where
+  precision = 9999999999999 :: Integer
 
 -- Useful for getting at minBound and maxBound without having to
 -- fiddle around with asTypeOf.
